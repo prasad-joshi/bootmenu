@@ -337,9 +337,6 @@ be_menu_select(be_console_t *cons, boot_conf_t *conf, boot_env_t **bepp,
 
 		be_menu_display_help(cons, conf, help);
 		help = 0;
-		move(40, 5);
-		erase(40);
-		printf("help = %d\n", help);
 
 		if (cur_active > cons_dispay_rows(cons)) {
 			skip = cur_active - cons_dispay_rows(cons);
