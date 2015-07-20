@@ -263,6 +263,7 @@ static void
 be_menu_display_help(be_console_t *cons, boot_conf_t *conf, int help)
 {
 	struct help_msg help_msg[] = {
+		{"Default BE marked with '*' at the end", 1},
 		{"Press 'h' or '?'          to display help message.", 0},
 		{"Press 'Enter'             to select BE for booting", 1},
 		{"Press 'o'                 to change order of sorting", 1},
