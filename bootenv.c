@@ -25,15 +25,18 @@ bootenv_new(const char *name, uint64_t objnum, uint64_t timestamp, int active,
 		boot_env_t **bepp)
 {
 	boot_env_t *be;
+	size_t     ns;
 
 	be = malloc(sizeof(*be));
 
-	strncpy(be->name, name, sizeof(be->name));
-	be->objnum    = objnum;
-	be->timestamp = timestamp;
-	be->active    = active;
-	be->id        = 0;
-	*bepp         = be;
+	ns = sizeof(be->name);
+	strncpy(be->name, name, ns);
+	be->name[ns - 1] = 0;
+	be->objnum       = objnum;
+	be->timestamp    = timestamp;
+	be->active       = active;
+	be->id           = 0;
+	*bepp            = be;
 
 	return (0);
 }

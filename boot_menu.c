@@ -134,7 +134,7 @@ draw_box(be_console_t *cons)
 	cons->cur_row++;
 }
 
-static int
+static key_event_t
 get_key_event(void)
 {
 	int i;
@@ -142,50 +142,75 @@ get_key_event(void)
 
 	rc = getchar();
 
-	if (rc == ENTER) {
+	if (rc == KEY_ENTER) {
 		return ENTER;
-	} else if (rc == ESC) {
-		/* read 91 */
+	} else if (rc == KEY_ESC) {
+		/* read 91 or 79 */
 		rc = getchar();
 
 		if (rc == 91) {
 			/* read arrow key */
 			rc = getchar();
+			getchar();
 			switch (rc) {
-			case ARROW_DOWN:
-			case ARROW_UP:
-				/* read enter */
-				getchar();
+			case KEY_ARROW_DOWN:
+				rc = SCROLL_DOWN;
 				break;
-			case PAGE_UP:
-			case PAGE_DOWN:
-				/* read enter */
+			case KEY_ARROW_UP:
+				rc = SCROLL_UP;
+				break;
+			case KEY_PAGE_UP:
 				getchar();
+				rc = SCROLL_PAGE_UP;
+				break;
+			case KEY_PAGE_DOWN:
 				getchar();
+				rc = SCROLL_PAGE_DOWN;
+				break;
 			}
 		} else if (rc == 79) {
 			rc = getchar();
+			getchar();
 			switch (rc) {
-			case HOME:
-				getchar();
+			case KEY_HOME:
+				rc = SCROLL_HOME;
 				break;
-			case END:
-				getchar();
+			case KEY_END:
+				rc = SCROLL_END;
 				break;
 			}
 		}
-
-		return rc;
-	} else if (rc == SORT_ORDER || rc == SORT_KEY) {
+	} else {
 		getchar();
-		return (rc);
-	} else if (rc == H_KEY || rc == QUST_KEY) {
-		getchar();
-		return (HELP);
+		switch (rc) {
+		case KEY_K:
+			rc = SCROLL_UP;
+			break;
+		case KEY_J:
+			rc = SCROLL_DOWN;
+			break;
+		case KEY_S:
+			rc = SORT_KEY;
+			break;
+		case KEY_O:
+			rc = SORT_ORDER;
+			break;
+		case KEY_G:
+			rc = SCROLL_HOME;
+			break;
+		case KEY_CAP_G:
+			rc = SCROLL_END;
+			break;
+		case KEY_H:
+		case KEY_QUST:
+			rc = HELP;
+			break;
+		}
 	}
 
-	return (0);
+	return (rc);
 }
+
 
 static int
 be_menu_display(be_console_t *cons, boot_conf_t *conf, int skip, int cur_active)
@@ -238,15 +263,21 @@ static void
 be_menu_display_help(be_console_t *cons, boot_conf_t *conf, int help)
 {
 	struct help_msg help_msg[] = {
-		{"Press 'h' or '?' to display help message.", 0},
-		{"Press 'o' to change order of sorting", 1},
-		{"Press 'k' to change sort key", 1},
+		{"Press 'h' or '?'          to display help message.", 0},
+		{"Press 'Enter'             to select BE for booting", 1},
+		{"Press 'o'                 to change order of sorting", 1},
+		{"Press 's'                 to change sort key", 1},
+		{"Press 'j' or 'Down arrow' to scroll down", 1},
+		{"Press 'k' or 'Up arrow'   to scroll up", 1},
+		{"Press 'G' or 'End'        to scroll to end", 1},
+		{"Press 'g' or 'Home'       to scroll to start", 1},
 	};
 
 	int             r;
 	int             c;
 	char            msg[128];
 	size_t          sz;
+	size_t          s;
 	struct help_msg *h;
 	int             i;
 	int             n;
@@ -256,10 +287,10 @@ be_menu_display_help(be_console_t *cons, boot_conf_t *conf, int help)
 
 	/* print sort key and order information */
 	memset(msg, 0, sizeof(msg));
-	sz = sizeof(msg);
+	sz = s = sizeof(msg) - 1;
 	strncpy(msg, "BEs sorted using ", sz);
 
-	sz = sizeof(msg) - strlen(msg);
+	sz = s - strlen(msg);
 	switch (conf->key) {
 	case SORT_OBJNUM:
 		strncat(msg, "'object number' ", sz);
@@ -272,7 +303,7 @@ be_menu_display_help(be_console_t *cons, boot_conf_t *conf, int help)
 		break;
 	}
 
-	sz = sizeof(msg) - strlen(msg);
+	sz = s - strlen(msg);
 	switch (conf->order) {
 	case SORT_ASCENDING:
 		strncat(msg, "in ascending order", sz);
@@ -281,6 +312,7 @@ be_menu_display_help(be_console_t *cons, boot_conf_t *conf, int help)
 		strncat(msg, "in descending order", sz);
 		break;
 	}
+	msg[s] = 0;
 
 	normal();
 	move(r, c);
@@ -359,34 +391,34 @@ be_menu_select(be_console_t *cons, boot_conf_t *conf, boot_env_t **bepp,
 			*bepp       = NULL;
 			*sort_key   = 1;
 			goto out;
-		case ARROW_UP:
+		case SCROLL_UP:
 			if (cur_active) {
 				cur_active--;
 			}
 			break;
-		case ARROW_DOWN:
+		case SCROLL_DOWN:
 			if (cur_active < be_count - 1) {
 				cur_active++;
 			}
 			break;
-		case PAGE_UP:
+		case SCROLL_PAGE_UP:
 			if (cur_active > cons_dispay_rows(cons)) {
 				cur_active -= cons_dispay_rows(cons);
 			} else {
 				cur_active = 0;
 			}
 			break;
-		case PAGE_DOWN:
+		case SCROLL_PAGE_DOWN:
 			if (cur_active + cons_dispay_rows(cons) < be_count - 1) {
 				cur_active += cons_dispay_rows(cons);
 			} else {
 				cur_active = be_count - 1;
 			}
 			break;
-		case  HOME:
+		case SCROLL_HOME:
 			cur_active = 0;
 			break;
-		case END:
+		case SCROLL_END:
 			cur_active = be_count - 1;
 			break;
 		case HELP:

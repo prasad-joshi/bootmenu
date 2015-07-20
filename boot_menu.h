@@ -38,27 +38,48 @@ cons_dispay_cols(be_console_t *cons)
 	return (cons->ncols - 2);
 }
 
-#define ENTER      10
-#define ESC        27
+typedef enum {
+	ENTER,
+
+	SCROLL_UP,
+	SCROLL_DOWN,
+
+	SCROLL_PAGE_UP,
+	SCROLL_PAGE_DOWN,
+
+	SCROLL_HOME,
+	SCROLL_END,
+
+	SORT_ORDER,
+	SORT_KEY,
+
+	HELP,
+} key_event_t;
+
+#define KEY_ENTER      10
+#define KEY_ESC        27
 
 /* Arrow key scan code has ESC, 91, key, enter */
-#define ARROW_UP   65
-#define ARROW_DOWN 66
+#define KEY_ARROW_UP   65
+#define KEY_K          107
+#define KEY_ARROW_DOWN 66
+#define KEY_J          106
 
 /* page up and down scan code has ESC, 91, key, unknow key, enter */
-#define PAGE_UP    53
-#define PAGE_DOWN  54
+#define KEY_PAGE_UP    53
+#define KEY_PAGE_DOWN  54
 
 /* home and end key scan code contains ESC, 79, key, and enter */
-#define HOME       72
-#define END        70
+#define KEY_HOME       72
+#define KEY_G          103
+#define KEY_END        70
+#define KEY_CAP_G      71
 
-#define SORT_ORDER 111 /* 'o' to reverse sort order */
-#define SORT_KEY   107 /* 'k' to change sort key    */
+#define KEY_O          111 /* 'o' to reverse sort order */
+#define KEY_S          115 /* 's' to change sort key    */
 
-#define HELP       104 /* '?' or 'h' to display help */
-#define H_KEY      104 /* 'h' key ascii code         */
-#define QUST_KEY   63  /* '?' key ascii code         */
+#define KEY_H          104 /* 'h' key ascii code         */
+#define KEY_QUST       63  /* '?' key ascii code         */
 
 int be_menu_select(be_console_t *console, boot_conf_t *conf, boot_env_t **bep,
 		int *sort_order, int *sort_key);
