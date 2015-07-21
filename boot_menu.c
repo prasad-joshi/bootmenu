@@ -6,13 +6,15 @@
 #include "boot_menu.h"
 
 static void
-move(int row, int col)
+move(be_console_t *cons, int row, int col)
 {
 	printf("\033[%d;%dH",row,col);
+	cons->cur_row = row;
+	cons->cur_col = col;
 }
 
 static void
-erase(int row)
+erase()
 {
 	printf("\033[2K");
 }
@@ -41,73 +43,83 @@ print_msg(be_console_t *cons, char *msg, int msglen)
 	int nchars;
 	int i;
 
-	nchars = cons_dispay_cols(cons);
+	nchars  = cons_total_cols(cons);
+	nchars -= (cons->cur_col - cons->scol);
 	for (i = 0; i < nchars && i < msglen; i++) {
 		printf("%c", msg[i]);
+		cons->cur_col++;
 	}
 }
 
 static void
 print_normal(be_console_t *cons, char *msg, int msglen, int select)
 {
-	char *s;
-	int  i;
+	char *s  = " > ";
+	char *ns = "   ";
+	char *p  = "|";
 
 	normal();
-	printf("|");
+	print_msg(cons, p, strlen(p));
 	if (select) {
 		reverse();
+		print_msg(cons, s, strlen(s));
+	} else {
+		print_msg(cons, ns, strlen(ns));
 	}
 
 	print_msg(cons, msg, msglen);
 
 	normal();
-	move(cons->cur_row, cons->scol + cons_total_cols(cons));
-	printf("|");
+	move(cons, cons->cur_row, cons->scol + cons_total_cols(cons) - 1);
+	print_msg(cons, p, strlen(p));
 }
 
 static void
 print_bold(be_console_t *cons, char *msg, int msglen, int select)
 {
-	char *s;
+	char *s  = " > ";
+	char *ns = "   ";
+	char *p  = "|";
 
 	normal();
-	printf("|");
+	print_msg(cons, p, strlen(p));
 	if (select) {
 		reverse();
+		print_msg(cons, s, strlen(s));
+	} else {
+		print_msg(cons, ns, strlen(ns));
 	}
 	bold();
 
 	print_msg(cons, msg, msglen);
 
 	normal();
-	move(cons->cur_row, cons->scol + cons_total_cols(cons));
-	printf("|");
+	move(cons, cons->cur_row, cons->scol + cons_total_cols(cons) - 1);
+	print_msg(cons, p, strlen(p));
 }
 
 static void
-draw_line(int row, int col, int nchars)
+draw_line(be_console_t *cons, int row, int col, int nchars)
 {
 	int i;
 
-	move(row, col);
+	move(cons, row, col);
 	normal();
 	for (i = 0; i < nchars; i++) {
-		printf("=");
+		print_msg(cons, "=", strlen("="));
 	}
 	normal();
-	printf("\n");
 }
 
 static void
-draw_container(int row, int col, int nchars)
+draw_container(be_console_t *cons, int row, int col, int nchars)
 {
-	move(row, col);
+	move(cons, row, col);
 	normal();
-	printf("|");
+	print_msg(cons, "|", strlen("|"));
 
-	move(row, col+nchars);
-	printf("|");
+	move(cons, row, col+nchars);
+	print_msg(cons, "|", strlen("|"));
 }
 
 static void
@@ -117,15 +129,17 @@ draw_box(be_console_t *cons)
 	int sc;
 	int er;
 
+	cons->cur_row = cons->srow;
+	cons->cur_col = cons->scol;
 	sr = cons->srow;
 	sc = cons->scol;
 	er = sr + cons_total_rows(cons);
 
 	while (sr <= er) {
 		if (sr == cons->srow || sr == er) {
-			draw_line(sr, sc, cons_total_cols(cons));
+			draw_line(cons, sr, sc, cons_total_cols(cons));
 		} else {
-			draw_container(sr, sc, cons_total_cols(cons));
+			draw_container(cons, sr, sc, cons_total_cols(cons));
 		}
 
 		sr++;
@@ -221,6 +235,8 @@ be_menu_display(be_console_t *cons, boot_conf_t *conf, int skip, int cur_active)
 	int        select;
 	int        d;        /* number of BEs displayed */
 
+	cons->cur_row = cons->srow + 1;
+	cons->cur_col = cons->scol;
 	i = 0;
 	d = 0;
 	BOOTENV_FOREACH(conf, b) {
@@ -238,8 +254,8 @@ be_menu_display(be_console_t *cons, boot_conf_t *conf, int skip, int cur_active)
 
 		select = (i == cur_active);
 
-		move(cons->cur_row, cons->cur_col);
-		erase(cons->cur_row);
+		move(cons, cons->cur_row, cons->cur_col);
+		erase();
 		if (b->active == 0) {
 			print_normal(cons, str, strlen(str), select);
 		} else {
@@ -247,6 +263,7 @@ be_menu_display(be_console_t *cons, boot_conf_t *conf, int skip, int cur_active)
 		}
 
 		cons->cur_row++;
+		cons->cur_col = cons->scol;
 		i++;
 		d++;
 	}
@@ -283,6 +300,8 @@ be_menu_display_help(be_console_t *cons, boot_conf_t *conf, int help)
 	int             i;
 	int             n;
 
+	cons->cur_row = cons->srow;
+	cons->cur_col = cons->scol;
 	r = cons->nrows + cons->srow + 2;
 	c = cons->scol;
 
@@ -316,8 +335,8 @@ be_menu_display_help(be_console_t *cons, boot_conf_t *conf, int help)
 	msg[s] = 0;
 
 	normal();
-	move(r, c);
-	erase(r);
+	move(cons, r, c);
+	erase();
 	print_msg(cons, msg, strlen(msg));
 
 	/* print help message if required */
@@ -327,8 +346,8 @@ be_menu_display_help(be_console_t *cons, boot_conf_t *conf, int help)
 	n = sizeof(help_msg) / sizeof(help_msg[0]);
 	for (i = 0; i < n; i++) {
 		h = help_msg + i;
-		move(r + i, c);
-		erase(r + i);
+		move(cons, r + i, c);
+		erase();
 		if (help == 0 && h->is_help == 1) {
 			continue;
 		}
@@ -362,9 +381,7 @@ be_menu_select(be_console_t *cons, boot_conf_t *conf, boot_env_t **bepp,
 
 	help = 0;
 	while (1) {
-		skip          = 0;
-		cons->cur_row = cons->srow;
-		cons->cur_col = cons->scol;
+		skip = 0;
 
 		draw_box(cons);
 
